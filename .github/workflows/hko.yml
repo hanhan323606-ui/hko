@@ -1,10 +1,10 @@
 name: hko-push
 on:
   schedule:
-    - cron: "*/30 * * * *"      # 只作兜底：链路断了才靠它复活（GitHub 定时经常延迟十几分钟）
+    - cron: "*/30 * * * *"      # 兜底：链路断了靠它复活
   workflow_dispatch:
 permissions:
-  actions: write                # 允许自己触发下一次运行，形成连续链路
+  actions: write
   contents: read
 concurrency:
   group: hko
@@ -12,8 +12,16 @@ concurrency:
 jobs:
   push:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
+      - name: queue next run (无缝接力)
+        if: always()
+        env:
+          GH: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -s -X POST -H "Authorization: Bearer $GH" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/hko.yml/dispatches" \
+            -d '{"ref":"main"}' -o /dev/null -w "queued_next=%{http_code}\n"
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
         with:
@@ -27,14 +35,3 @@ jobs:
           MODE: cont
           MAX_RUN: "250"
         run: python3 -u hko_tg_sched.py
-      - name: chain next run
-        if: always()
-        env:
-          GH: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          sleep 5
-          curl -s -X POST \
-            -H "Authorization: Bearer $GH" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/hko.yml/dispatches" \
-            -d '{"ref":"main"}' -o /dev/null -w "chain=%{http_code}\n"
