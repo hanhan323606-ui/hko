@@ -1,0 +1,26 @@
+name: hko-push
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+concurrency:
+  group: hko
+  cancel-in-progress: false
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .hko_tg_state
+          key: hko-state-${{ github.run_id }}
+          restore-keys: hko-state-
+      - name: poll + push
+        env:
+          TG_TOKEN: "9232940714:AAEvO3nXmyzWFY_iBBYFI6SE6eWXrtXKWDw"
+          TG_CHAT: "1885271521"
+          MODE: cont
+          MAX_RUN: "260"
+        run: python3 -u hko_tg_sched.py
