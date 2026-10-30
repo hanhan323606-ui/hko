@@ -1,15 +1,18 @@
 name: hko-push
 on:
   schedule:
-    - cron: "6,16,26,36,46,56 * * * *"
+    - cron: "*/30 * * * *"      # 只作兜底：链路断了才靠它复活（GitHub 定时经常延迟十几分钟）
   workflow_dispatch:
+permissions:
+  actions: write                # 允许自己触发下一次运行，形成连续链路
+  contents: read
 concurrency:
   group: hko
   cancel-in-progress: false
 jobs:
   push:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
@@ -22,5 +25,16 @@ jobs:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT: ${{ secrets.TG_CHAT }}
           MODE: cont
-          MAX_RUN: "150"
+          MAX_RUN: "250"
         run: python3 -u hko_tg_sched.py
+      - name: chain next run
+        if: always()
+        env:
+          GH: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 5
+          curl -s -X POST \
+            -H "Authorization: Bearer $GH" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/hko.yml/dispatches" \
+            -d '{"ref":"main"}' -o /dev/null -w "chain=%{http_code}\n"
