@@ -19,8 +19,8 @@ jobs:
           restore-keys: hko-state-
       - name: poll + push
         env:
-          TG_TOKEN: "9232940714:AAEvO3nXmyzWFY_iBBYFI6SE6eWXrtXKWDw"
-          TG_CHAT: "1885271521"
+          TG_TOKEN: ${{ secrets.TG_TOKEN }} # 9232940714:AAEvO3nXmyzWFY_iBBYFI6SE6eWXrtXKWDw"
+          TG_CHAT: ${{ secrets.TG_CHAT }}
           MODE: cont
           MAX_RUN: "150"
         run: python3 -u hko_tg_sched.py
